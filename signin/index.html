@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>CompHive sign-in</title>
+<style>
+  :root { --bg: #f6f5f2; --card: #ffffff; --text: #1d1c1a; --muted: #5f5e5a; --line: #d9d7d0; --accent: #c96a12; --bad: #a32d2d; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #17181a; --card: #222326; --text: #ecebe6; --muted: #a8a6a0; --line: #3a3b3f; --accent: #f0a04b; --bad: #f09595; } }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 16px;
+         background: var(--bg); color: var(--text); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { width: 100%; max-width: 520px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 28px; }
+  h1 { margin: 0 0 4px; font-size: 20px; font-weight: 600; }
+  .brand { color: var(--accent); font-weight: 600; letter-spacing: .02em; font-size: 13px; text-transform: uppercase; }
+  p { margin: 12px 0 0; }
+  .muted { color: var(--muted); font-size: 14px; }
+  .bad { color: var(--bad); }
+  .fallback { display: none; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--line); }
+  textarea { width: 100%; height: 88px; margin-top: 8px; font: 13px/1.4 ui-monospace, Consolas, monospace; resize: none;
+             background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 8px; }
+  button { margin-top: 8px; font: inherit; padding: 8px 16px; border-radius: 8px; border: 1px solid var(--line);
+           background: var(--accent); color: #1d1c1a; font-weight: 600; cursor: pointer; }
+</style>
+</head>
+<body>
+<main>
+  <div class="brand">CompHive</div>
+  <h1 id="title">Signing you in to Frame.io</h1>
+  <p id="message">Handing you back to CompHive in After Effects&hellip;</p>
+  <div class="fallback" id="fallback">
+    <p>If After Effects did not confirm the sign-in, copy this address and paste it into CompHive (Setup, Review, Sign in):</p>
+    <textarea id="address" readonly aria-label="Address to paste into CompHive"></textarea>
+    <button type="button" id="copy">Copy address</button>
+    <p class="muted" id="copied" role="status"></p>
+  </div>
+  <p class="muted">This page passes Adobe's one-time sign-in code to CompHive on this computer. It stores nothing and sends nothing anywhere else.</p>
+</main>
+<script>
+(function () {
+  var q = new URLSearchParams(window.location.search);
+  var title = document.getElementById('title'), message = document.getElementById('message');
+  var fallback = document.getElementById('fallback'), address = document.getElementById('address');
+
+  function showFallback() {
+    address.value = window.location.href;
+    fallback.style.display = 'block';
+  }
+  document.getElementById('copy').addEventListener('click', function () {
+    address.select();
+    var done = function () { document.getElementById('copied').textContent = 'Copied. Paste it into CompHive.'; };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(address.value).then(done, function () { document.execCommand('copy'); done(); });
+    else { document.execCommand('copy'); done(); }
+  });
+
+  var error = q.get('error'), code = q.get('code'), state = q.get('state') || '';
+  if (error) {
+    title.textContent = 'Adobe did not sign you in';
+    message.textContent = (q.get('error_description') || error) + '. Close this tab and try Sign in again in CompHive.';
+    message.className = 'bad';
+    return;
+  }
+  if (!code) {
+    title.textContent = 'Nothing to sign in';
+    message.textContent = 'Start the sign-in from CompHive in After Effects (Setup, Review, Sign in).';
+    return;
+  }
+  // The panel puts the port it listens on at the start of the state: "p<port>-<random>"
+  var m = /^p(\d{4,5})-[A-Za-z0-9_-]{8,}$/.exec(state), port = m ? parseInt(m[1], 10) : 0;
+  if (!(port >= 1024 && port <= 65535)) {
+    message.textContent = 'CompHive is not listening for this sign-in.';
+    showFallback();
+    return;
+  }
+  window.setTimeout(showFallback, 4000);
+  window.location.replace('http://127.0.0.1:' + port + '/comphive/frameio' + window.location.search);
+})();
+</script>
+</body>
+</html>
